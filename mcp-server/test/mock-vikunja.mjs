@@ -9,6 +9,7 @@ const projects = [
   { id: 2, title: "prj" },
 ];
 
+let nextProjectId = 3;
 let nextTaskId = 100;
 const tasksById = new Map();
 
@@ -56,6 +57,18 @@ const server = http.createServer((req, res) => {
     // GET /api/v1/projects
     if (req.method === "GET" && url.pathname === "/api/v1/projects") {
       return send(res, 200, projects);
+    }
+
+    // PUT /api/v1/projects  (create)
+    if (req.method === "PUT" && url.pathname === "/api/v1/projects") {
+      const project = {
+        id: nextProjectId++,
+        title: json.title,
+        description: json.description ?? "",
+        parent_project_id: json.parent_project_id ?? 0,
+      };
+      projects.push(project);
+      return send(res, 201, project);
     }
 
     // GET /api/v1/projects/:id/tasks

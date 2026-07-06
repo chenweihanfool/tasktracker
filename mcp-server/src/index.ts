@@ -92,6 +92,32 @@ server.registerTool(
 );
 
 server.registerTool(
+  "create_project",
+  {
+    description: "Create a new Vikunja project, optionally nested under an existing parent project.",
+    inputSchema: {
+      title: z.string().min(1),
+      description: z.string().optional(),
+      parent_project_id: z
+        .number()
+        .int()
+        .optional()
+        .describe("If set, creates this project as a child of the given project ID."),
+    },
+  },
+  async ({ title, description, parent_project_id }) => {
+    try {
+      const fields: { title: string; description?: string; parent_project_id?: number } = { title };
+      if (description !== undefined) fields.description = description;
+      if (parent_project_id !== undefined) fields.parent_project_id = parent_project_id;
+      return ok(await client.createProject(fields));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
   "list_tasks",
   {
     description:

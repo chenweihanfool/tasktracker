@@ -54,6 +54,18 @@ async function main() {
     assert(projects.length === 2, `expected 2 projects, got ${projects.length}`);
     console.log("[PASS] list_projects");
 
+    // create_project
+    res = await client.callTool({
+      name: "create_project",
+      arguments: { title: "New project", description: "created by smoke test" },
+    });
+    assert(!res.isError, `create_project failed: ${textOf(res)}`);
+    const newProject = JSON.parse(textOf(res));
+    assert(newProject.title === "New project", "created project title mismatch");
+    res = await client.callTool({ name: "list_projects", arguments: {} });
+    assert(JSON.parse(textOf(res)).length === 3, "new project should show up in list_projects");
+    console.log("[PASS] create_project");
+
     // list_tasks: project 1 has task 1 (parent) with subtask 2 nested
     res = await client.callTool({ name: "list_tasks", arguments: { project_id: 1 } });
     assert(!res.isError, `list_tasks failed: ${textOf(res)}`);

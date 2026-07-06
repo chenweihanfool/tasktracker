@@ -86,6 +86,14 @@ export class VikunjaClient {
     return this.request<VikunjaProject[]>("GET", "/api/v1/projects");
   }
 
+  createProject(fields: {
+    title: string;
+    description?: string;
+    parent_project_id?: number;
+  }): Promise<VikunjaProject> {
+    return this.request<VikunjaProject>("PUT", "/api/v1/projects", fields);
+  }
+
   async listTasksInProject(projectId: number): Promise<VikunjaTask[]> {
     const all: VikunjaTask[] = [];
     for (let page = 1; ; page++) {
