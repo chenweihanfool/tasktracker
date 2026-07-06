@@ -9,11 +9,15 @@ channel = "stable-24_05"
 localPort = 3456
 externalPort = 80
 
-# Vikunja keeps its state in a local SQLite file (./data/vikunja.db) and needs
-# to run continuously as one long-lived process, so this must be deployed as
-# a Reserved VM deployment (persistent disk, always-on), NOT Autoscale.
-# Autoscale spins up stateless, ephemeral containers per request and will
-# silently reset the SQLite database and JWT secret on every scale event.
+# Autoscale is stateless per-instance (scales to zero when idle, fresh
+# container on cold start), so ALL state must live outside the compute
+# instance: Replit's managed Postgres (provision it via the Database pane —
+# this sets DATABASE_URL) instead of a local SQLite file, and a fixed
+# VIKUNJA_SERVICE_SECRET set as a Replit Secret instead of an
+# auto-generated one written to disk. See scripts/start-vikunja.sh and
+# README.md for details and for the (more expensive) Reserved VM + SQLite
+# alternative if you ever want it instead.
 [deployment]
-deploymentTarget = "vm"
+deploymentTarget = "autoscale"
+build = ["bash", "scripts/install-vikunja.sh"]
 run = ["bash", "scripts/start-vikunja.sh"]
