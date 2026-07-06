@@ -120,6 +120,16 @@ async function main() {
     assert(!res.isError, `get_tasks_due_today failed: ${textOf(res)}`);
     console.log("[PASS] get_tasks_due_today (call path)");
 
+    // set_task_color: align a task's Gantt/Kanban color with a hex value
+    res = await client.callTool({
+      name: "set_task_color",
+      arguments: { task_id: 1, hex_color: "#7f23ff" },
+    });
+    assert(!res.isError, `set_task_color failed: ${textOf(res)}`);
+    const colored = JSON.parse(textOf(res));
+    assert(colored.hex_color === "7f23ff", `expected normalized hex_color "7f23ff", got ${colored.hex_color}`);
+    console.log("[PASS] set_task_color (normalizes leading #)");
+
     // delete_task: delete the throwaway task we created earlier, then verify
     // a subsequent get on it fails instead of silently succeeding.
     res = await client.callTool({ name: "delete_task", arguments: { task_id: created.id } });

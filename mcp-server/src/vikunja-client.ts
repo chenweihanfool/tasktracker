@@ -127,6 +127,11 @@ export class VikunjaClient {
     return this.request("DELETE", `/api/v1/tasks/${id}`);
   }
 
+  async setTaskColor(id: number, hexColor: string): Promise<VikunjaTask> {
+    const current = await this.getTask(id);
+    return this.updateTask(id, { ...current, hex_color: hexColor });
+  }
+
   createRelation(taskId: number, relationKind: string, otherTaskId: number): Promise<unknown> {
     return this.request("PUT", `/api/v1/tasks/${taskId}/relations`, {
       relation_kind: relationKind,

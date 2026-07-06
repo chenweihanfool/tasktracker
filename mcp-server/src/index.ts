@@ -249,6 +249,34 @@ server.registerTool(
   },
 );
 
+// Vikunja's Gantt view colors each task bar from the task's own hex_color
+// field -- it does NOT inherit the project's color automatically. This tool
+// lets a caller (e.g. to align a task's color with its project's color)
+// set that field explicitly.
+const hexColorInput = z
+  .string()
+  .regex(/^#?[0-9a-fA-F]{6}$/, "must be a 6-digit hex color, e.g. #ff8800 or ff8800");
+
+server.registerTool(
+  "set_task_color",
+  {
+    description:
+      "Set a task's display color (used for its Gantt bar and Kanban card). Vikunja does not inherit this from the task's project automatically, so use this to align a task's color with its project's color if desired.",
+    inputSchema: {
+      task_id: z.number().int(),
+      hex_color: hexColorInput,
+    },
+  },
+  async ({ task_id, hex_color }) => {
+    try {
+      const normalized = hex_color.replace(/^#/, "");
+      return ok(await client.setTaskColor(task_id, normalized));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
 async function collectMatchingTasks(predicate: (t: VikunjaTask) => boolean): Promise<VikunjaTask[]> {
   const projects = await client.listProjects();
   const matches: VikunjaTask[] = [];
