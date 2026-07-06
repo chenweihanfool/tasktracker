@@ -1,0 +1,19 @@
+entrypoint = "scripts/start-vikunja.sh"
+run = ["bash", "scripts/start-vikunja.sh"]
+modules = ["bash"]
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 3456
+externalPort = 80
+
+# Vikunja keeps its state in a local SQLite file (./data/vikunja.db) and needs
+# to run continuously as one long-lived process, so this must be deployed as
+# a Reserved VM deployment (persistent disk, always-on), NOT Autoscale.
+# Autoscale spins up stateless, ephemeral containers per request and will
+# silently reset the SQLite database and JWT secret on every scale event.
+[deployment]
+deploymentTarget = "vm"
+run = ["bash", "scripts/start-vikunja.sh"]
