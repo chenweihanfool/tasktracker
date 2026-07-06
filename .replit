@@ -21,3 +21,6 @@ externalPort = 80
 deploymentTarget = "autoscale"
 build = ["bash", "scripts/install-vikunja.sh"]
 run = ["bash", "scripts/start-vikunja.sh"]
+
+[agent]
+expertMode = true
