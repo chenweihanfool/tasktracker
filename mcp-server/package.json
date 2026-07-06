@@ -1,0 +1,21 @@
+{
+  "name": "vikunja-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server exposing Vikunja projects/tasks to HERMES",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node dist/index.js",
+    "dev": "tsc -p . && node dist/index.js",
+    "test": "tsc -p . && node test/run.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3"
+  }
+}
