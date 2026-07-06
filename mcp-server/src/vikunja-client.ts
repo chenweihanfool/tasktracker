@@ -115,6 +115,10 @@ export class VikunjaClient {
     return this.request<VikunjaTask>("POST", `/api/v1/tasks/${id}`, fullTask);
   }
 
+  deleteTask(id: number): Promise<unknown> {
+    return this.request("DELETE", `/api/v1/tasks/${id}`);
+  }
+
   createRelation(taskId: number, relationKind: string, otherTaskId: number): Promise<unknown> {
     return this.request("PUT", `/api/v1/tasks/${taskId}/relations`, {
       relation_kind: relationKind,

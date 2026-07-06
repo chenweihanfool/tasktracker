@@ -108,6 +108,16 @@ async function main() {
     assert(!res.isError, `get_tasks_due_today failed: ${textOf(res)}`);
     console.log("[PASS] get_tasks_due_today (call path)");
 
+    // delete_task: delete the throwaway task we created earlier, then verify
+    // a subsequent get on it fails instead of silently succeeding.
+    res = await client.callTool({ name: "delete_task", arguments: { task_id: created.id } });
+    assert(!res.isError, `delete_task failed: ${textOf(res)}`);
+    console.log("[PASS] delete_task");
+
+    res = await client.callTool({ name: "update_task", arguments: { task_id: created.id, done: true } });
+    assert(res.isError, "update_task on a deleted task should fail, not silently succeed");
+    console.log("[PASS] operating on a deleted task surfaces a real error");
+
     // Error surfacing: wrong token should produce a clear, non-hallucinated error
     const badTransport = new StdioClientTransport({
       command: process.execPath,

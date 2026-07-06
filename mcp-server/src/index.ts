@@ -205,6 +205,24 @@ server.registerTool(
   },
 );
 
+server.registerTool(
+  "delete_task",
+  {
+    description: "Permanently delete a Vikunja task. This cannot be undone.",
+    inputSchema: {
+      task_id: z.number().int(),
+    },
+  },
+  async ({ task_id }) => {
+    try {
+      await client.deleteTask(task_id);
+      return ok({ deleted: true, task_id });
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
 async function collectMatchingTasks(predicate: (t: VikunjaTask) => boolean): Promise<VikunjaTask[]> {
   const projects = await client.listProjects();
   const matches: VikunjaTask[] = [];

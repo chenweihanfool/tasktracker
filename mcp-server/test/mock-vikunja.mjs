@@ -103,6 +103,14 @@ const server = http.createServer((req, res) => {
       return send(res, 200, merged);
     }
 
+    // DELETE /api/v1/tasks/:id
+    if (req.method === "DELETE" && m) {
+      const id = Number(m[1]);
+      if (!tasksById.has(id)) return send(res, 404, { message: "task not found (mock)" });
+      tasksById.delete(id);
+      return send(res, 200, { message: "task deleted (mock)" });
+    }
+
     // PUT /api/v1/tasks/:id/relations
     m = url.pathname.match(/^\/api\/v1\/tasks\/(\d+)\/relations$/);
     if (req.method === "PUT" && m) {
