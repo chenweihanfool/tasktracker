@@ -14,3 +14,13 @@
 	pointer-events: none;
 	transform: translateX(-1px);
 }
+
+/* Affordance for the click-drag-to-pan behavior in inject.js: the empty
+   chart background looks grabbable, task bars keep their normal pointer
+   cursor so it's still clear they're a separate, clickable/draggable thing. */
+.gantt-container {
+	cursor: grab;
+}
+.gantt-container .gantt-bar {
+	cursor: pointer;
+}
