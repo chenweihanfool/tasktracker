@@ -9,6 +9,10 @@ channel = "stable-24_05"
 localPort = 3456
 externalPort = 80
 
+[[ports]]
+localPort = 3457
+externalPort = 3000
+
 # Autoscale is stateless per-instance (scales to zero when idle, fresh
 # container on cold start), so ALL state must live outside the compute
 # instance: Replit's managed Postgres (provision it via the Database pane —
