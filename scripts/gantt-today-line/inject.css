@@ -1,0 +1,16 @@
+/* Draws a persistent vertical line through today's column in the Gantt
+   view, from the date header down through every task row, so it's obvious
+   at a glance which task bars today's date crosses. Vikunja itself only
+   highlights the date number in the header (see .timeunit-wrapper.today);
+   it has no line running through the rows. */
+#__vikunja-today-line {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: var(--primary, #1973ff);
+	opacity: 0.55;
+	z-index: 9; /* above grid lines/bars, below the sticky header (z-index: 10) */
+	pointer-events: none;
+	transform: translateX(-1px);
+}

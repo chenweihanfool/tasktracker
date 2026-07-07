@@ -61,7 +61,16 @@ else
 fi
 
 # --- Service / network --------------------------------------------------
-export VIKUNJA_SERVICE_INTERFACE="${VIKUNJA_SERVICE_INTERFACE:-:3456}"
+# Vikunja itself listens only on an internal port; the gantt-today-line proxy
+# (see scripts/gantt-today-line/) owns the public port so it can inject the
+# Gantt "today" vertical line into the HTML it serves. See that directory's
+# proxy.js for why this can't just be a patch to Vikunja's own files (the
+# release binary embeds a prebuilt frontend, nothing left to patch post-install).
+PUBLIC_PORT="${VIKUNJA_SERVICE_INTERFACE:-:3456}"
+PUBLIC_PORT="${PUBLIC_PORT#:}"
+INTERNAL_PORT="${GANTT_PROXY_INTERNAL_PORT:-3457}"
+
+export VIKUNJA_SERVICE_INTERFACE=":${INTERNAL_PORT}"
 export VIKUNJA_SERVICE_ENABLEREGISTRATION="${VIKUNJA_SERVICE_ENABLEREGISTRATION:-true}"
 
 # Public URL is required for CORS + correct links. Prefer an explicitly-set
@@ -89,5 +98,25 @@ if [ -z "${VIKUNJA_SERVICE_SECRET:-}" ]; then
   exit 1
 fi
 
-echo "[start-vikunja] Starting Vikunja on ${VIKUNJA_SERVICE_INTERFACE}, public URL ${VIKUNJA_SERVICE_PUBLICURL}"
-exec ./bin/vikunja
+echo "[start-vikunja] Starting Vikunja on ${VIKUNJA_SERVICE_INTERFACE} (internal), public URL ${VIKUNJA_SERVICE_PUBLICURL}"
+./bin/vikunja &
+VIKUNJA_PID=$!
+trap 'kill "$VIKUNJA_PID" 2>/dev/null || true' EXIT
+
+echo "[start-vikunja] Waiting for Vikunja to become ready on 127.0.0.1:${INTERNAL_PORT}..."
+for _ in $(seq 1 60); do
+  if curl -fs -o /dev/null "http://127.0.0.1:${INTERNAL_PORT}/api/v1/info"; then
+    break
+  fi
+  if ! kill -0 "$VIKUNJA_PID" 2>/dev/null; then
+    echo "[start-vikunja] ERROR: Vikunja exited before becoming ready." >&2
+    wait "$VIKUNJA_PID"
+    exit 1
+  fi
+  sleep 1
+done
+
+echo "[start-vikunja] Starting gantt-today-line proxy on :${PUBLIC_PORT} -> 127.0.0.1:${INTERNAL_PORT}"
+trap - EXIT
+GANTT_PROXY_PUBLIC_PORT="$PUBLIC_PORT" GANTT_PROXY_INTERNAL_PORT="$INTERNAL_PORT" \
+  exec node scripts/gantt-today-line/proxy.js

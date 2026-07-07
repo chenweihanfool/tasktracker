@@ -1,6 +1,6 @@
 entrypoint = "scripts/start-vikunja.sh"
 run = ["bash", "scripts/start-vikunja.sh"]
-modules = ["bash"]
+modules = ["bash", "nodejs-20"]
 
 [nix]
 channel = "stable-24_05"
