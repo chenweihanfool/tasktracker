@@ -39,9 +39,19 @@ const TASK_LIST_PATH_RE = /^\/api\/v1\/projects\/-?\d+\/(?:views\/\d+\/)?tasks$/
 // default to sort_by=[position, id]. Checking for that is how we scope the
 // project-grouping reorder to the Gantt view only, leaving other views'
 // task order exactly as Vikunja returns it.
+//
+// axios 1.18.1 (pinned in frontend/package.json) serializes an array-valued
+// param as repeated `key[]=` entries by default (no custom paramsSerializer
+// is configured in frontend/src/helpers/fetcher.ts) -- verified directly by
+// making a real axios request and inspecting the wire format -- so the
+// actual query string is `sort_by[]=start_date&sort_by[]=done&sort_by[]=id`,
+// NOT `sort_by=start_date`. Checking the bare `sort_by` key here silently
+// never matched, so this reorder never actually ran. Check both forms so
+// this doesn't quietly break again if that serialization ever changes.
 function isGanttTaskListRequest(url) {
 	if (!TASK_LIST_PATH_RE.test(url.pathname)) return false
-	return url.searchParams.getAll('sort_by')[0] === 'start_date'
+	const sortBy = url.searchParams.getAll('sort_by[]').concat(url.searchParams.getAll('sort_by'))
+	return sortBy[0] === 'start_date'
 }
 
 // Vikunja's Gantt view has no concept of "group rows by project" -- row
