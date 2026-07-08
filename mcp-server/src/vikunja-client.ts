@@ -33,6 +33,15 @@ export interface VikunjaTask {
   [key: string]: unknown;
 }
 
+export interface VikunjaComment {
+  id: number;
+  comment: string;
+  author?: { id: number; username: string; name?: string; [key: string]: unknown };
+  created: string;
+  updated: string;
+  [key: string]: unknown;
+}
+
 const DEFAULT_PAGE_SIZE = 50;
 
 export class VikunjaClient {
@@ -110,6 +119,13 @@ export class VikunjaClient {
 
   getTask(id: number): Promise<VikunjaTask> {
     return this.request<VikunjaTask>("GET", `/api/v1/tasks/${id}`);
+  }
+
+  // Comments come back oldest-first by default (Vikunja's own `order_by`
+  // param defaults to "asc"); we don't override it so callers see the
+  // conversation in the order it happened.
+  listTaskComments(id: number): Promise<VikunjaComment[]> {
+    return this.request<VikunjaComment[]>("GET", `/api/v1/tasks/${id}/comments`);
   }
 
   createTask(

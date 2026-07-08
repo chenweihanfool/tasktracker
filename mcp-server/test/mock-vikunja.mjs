@@ -36,6 +36,33 @@ seedTask(2, {
 });
 seedTask(3, { project_id: 2, title: "subprj" });
 
+// Shape copied from pkg/models/task_comments.go in go-vikunja/vikunja:
+// AuthorID/TaskID are `json:"-"` (never serialized), Author is the expanded
+// user object instead.
+const commentsByTaskId = new Map([
+  [
+    1,
+    [
+      {
+        id: 1,
+        comment: "first comment",
+        author: { id: 1, username: "hermes" },
+        created: "2026-07-01T00:00:00Z",
+        updated: "2026-07-01T00:00:00Z",
+        reactions: {},
+      },
+      {
+        id: 2,
+        comment: "second comment",
+        author: { id: 1, username: "hermes" },
+        created: "2026-07-02T00:00:00Z",
+        updated: "2026-07-02T00:00:00Z",
+        reactions: {},
+      },
+    ],
+  ],
+]);
+
 function send(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(body === undefined ? "" : JSON.stringify(body));
@@ -105,6 +132,17 @@ const server = http.createServer((req, res) => {
       const task = tasksById.get(Number(m[1]));
       if (!task) return send(res, 404, { message: "task not found (mock)" });
       return send(res, 200, task);
+    }
+
+    // GET /api/v1/tasks/:id/comments
+    // Uses its own match variable rather than reassigning `m`, since the
+    // POST/DELETE /api/v1/tasks/:id routes below still depend on `m` holding
+    // the plain task-id match set above.
+    const commentsMatch = url.pathname.match(/^\/api\/v1\/tasks\/(\d+)\/comments$/);
+    if (req.method === "GET" && commentsMatch) {
+      const id = Number(commentsMatch[1]);
+      if (!tasksById.has(id)) return send(res, 404, { message: "task not found (mock)" });
+      return send(res, 200, commentsByTaskId.get(id) ?? []);
     }
 
     // POST /api/v1/tasks/:id  (update)

@@ -137,6 +137,24 @@ server.registerTool(
 );
 
 server.registerTool(
+  "list_task_comments",
+  {
+    description:
+      "List all comments on a Vikunja task, oldest first, including each comment's author and timestamps.",
+    inputSchema: {
+      task_id: z.number().int().describe("The Vikunja task ID."),
+    },
+  },
+  async ({ task_id }) => {
+    try {
+      return ok(await client.listTaskComments(task_id));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
   "create_task",
   {
     description:

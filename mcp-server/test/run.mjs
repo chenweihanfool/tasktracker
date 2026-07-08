@@ -75,6 +75,21 @@ async function main() {
     assert(tree[0].subtasks.length === 1 && tree[0].subtasks[0].id === 2, "expected task 1 to have subtask 2 nested");
     console.log("[PASS] list_tasks (tree nesting)");
 
+    // list_task_comments: task 1 is seeded with 2 comments, oldest first
+    res = await client.callTool({ name: "list_task_comments", arguments: { task_id: 1 } });
+    assert(!res.isError, `list_task_comments failed: ${textOf(res)}`);
+    const comments = JSON.parse(textOf(res));
+    assert(comments.length === 2, `expected 2 comments, got ${comments.length}`);
+    assert(comments[0].comment === "first comment", "expected comments in chronological (oldest-first) order");
+    assert(comments[0].author?.username === "hermes", "expected comment author to be included");
+    console.log("[PASS] list_task_comments");
+
+    // list_task_comments on a task with none should return an empty array, not an error
+    res = await client.callTool({ name: "list_task_comments", arguments: { task_id: 3 } });
+    assert(!res.isError, `list_task_comments (no comments) failed: ${textOf(res)}`);
+    assert(JSON.parse(textOf(res)).length === 0, "expected an empty array for a task with no comments");
+    console.log("[PASS] list_task_comments (task with no comments)");
+
     // create_task with due_date + priority, as a subtask of task 1
     res = await client.callTool({
       name: "create_task",
