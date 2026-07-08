@@ -64,13 +64,29 @@ function isGanttTaskListRequest(url) {
 // project. Grouping the JSON array by project_id here -- before it ever
 // reaches Vikunja's frontend -- makes the resulting Map insertion order
 // (and therefore the Gantt row order) cluster each project's tasks
-// together, while leaving each project's own internal ordering (and any
-// existing parent/child DFS grouping, which doesn't depend on array order
-// at all) untouched.
+// together, while leaving any existing parent/child DFS grouping (which
+// doesn't depend on array order at all) untouched.
+//
+// Grouping alone isn't enough though: a task with only a due_date (no
+// start_date) has start_date == the zero-value sentinel, which sorts as
+// "year 1" -- so within a project's cluster it would always land first,
+// regardless of when it's actually due, rather than in chronological
+// order. sortKeyFor() falls back through start_date -> due_date ->
+// end_date so ordering within each project group is still meaningful for
+// tasks that only have a deadline set.
 //
 // Known limitation: Vikunja paginates this endpoint and this only reorders
 // within a single page's response, so if one project's tasks are split
 // across a page boundary they won't fully merge into one cluster.
+const NO_DATE = '0001-01-01T00:00:00Z'
+
+function sortKeyFor(task) {
+	if (task.start_date && task.start_date !== NO_DATE) return task.start_date
+	if (task.due_date && task.due_date !== NO_DATE) return task.due_date
+	if (task.end_date && task.end_date !== NO_DATE) return task.end_date
+	return '9999-12-31T00:00:00Z' // fully dateless tasks sort last within their project
+}
+
 function groupTasksByProject(bodyText) {
 	let tasks
 	try {
@@ -89,6 +105,15 @@ function groupTasksByProject(bodyText) {
 			projectOrder.push(projectId)
 		}
 		byProject.get(projectId).push(task)
+	}
+
+	for (const group of byProject.values()) {
+		group.sort((a, b) => {
+			const keyA = sortKeyFor(a)
+			const keyB = sortKeyFor(b)
+			if (keyA !== keyB) return keyA < keyB ? -1 : 1
+			return a.id - b.id
+		})
 	}
 
 	return JSON.stringify(projectOrder.flatMap((projectId) => byProject.get(projectId)))
