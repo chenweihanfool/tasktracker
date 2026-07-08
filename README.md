@@ -140,13 +140,21 @@ parent/subtask 關聯彼此連結的任務，列順序純粹是 API 回傳的順
 完全分開，跟這個任務屬於哪個專案無關。
 
 `proxy.js` 的 `groupTasksByProject()` 攔截甘特圖拉任務清單的那個 API
-回應（`GET /projects/{id}/views/{viewId}/tasks`，用 `sort_by[0] ===
-'start_date'` 判斷是不是甘特圖在打，藉此不影響 List/Table/Kanban 其他
-view 的排序），把回傳的 JSON 陣列依 `project_id` 重新分組（穩定排序、依
-各專案第一次出現的位置分堆），再送回瀏覽器。因為 Vikunja 前端建立
-`tasks` Map 的順序就是這個陣列順序，甘特圖的「根任務」列順序自然就照
-分組後的順序排列；已經存在的 parent/subtask DFS 分組邏輯完全不看陣列
-順序，所以不受影響、照原本方式繼續運作。
+回應（`GET /projects/{id}/views/{viewId}/tasks`，用查詢參數判斷是不是
+甘特圖在打，藉此不影響 List/Table/Kanban 其他 view 的排序），把回傳的
+JSON 陣列依 `project_id` 重新分組，組內再依「有效日期」（`start_date`，
+沒有的話退回 `due_date`，都沒有再退回 `end_date`，全部都沒有的排最後）
+重新排序，再送回瀏覽器。因為 Vikunja 前端建立 `tasks` Map 的順序就是這個
+陣列順序，甘特圖的「根任務」列順序自然就照分組＋排序後的結果排列；已經
+存在的 parent/subtask DFS 分組邏輯完全不看陣列順序，所以不受影響、照原本
+方式繼續運作。
+
+**踩過的坑**：判斷「這是不是甘特圖在打」原本寫的是
+`url.searchParams.getAll('sort_by')`，結果一直沒有生效過。原因是 Vikunja
+前端用的 axios 1.18.1 預設把陣列參數序列化成 `sort_by[]=start_date&
+sort_by[]=done&sort_by[]=id`（帶中括號的重複 key），不是 `sort_by=...`；
+用真的發一個 axios 請求印出實際網址字串才抓到這個落差。現在同時檢查
+`sort_by[]` 和 `sort_by` 兩種寫法。
 
 已知限制：Vikunja 這個端點有分頁，這裡只會在單一分頁的回應內重新分組；
 如果同一個專案的任務多到被拆到不同分頁，就沒辦法完全合併在一起。
