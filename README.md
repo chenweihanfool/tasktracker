@@ -130,6 +130,27 @@ API/JS/CSS/websocket 流量原封不動地 pipe 過去，不受影響。
 `.timeunit-wrapper.today` 這個 class 名稱不變（截至 go-vikunja/vikunja
 `main` 分支現況如此）。`replit.nix` / `.replit` 已加入 `nodejs_20` 依賴。
 
+### 甘特圖任務依專案分組（同一個 proxy 裡的第二個轉換）
+
+Vikunja 甘特圖完全沒有「同專案的任務排在一起」這個概念：沒有透過
+parent/subtask 關聯彼此連結的任務，列順序純粹是 API 回傳的順序，而甘特圖
+固定用 `sort_by=start_date,done,id`（見前端原始碼
+`frontend/src/views/project/helpers/useGanttFilters.ts`）。新建立、還沒填
+`start_date` 的任務會被當成年份 1（最早），排到最上面，跟同專案其他任務
+完全分開，跟這個任務屬於哪個專案無關。
+
+`proxy.js` 的 `groupTasksByProject()` 攔截甘特圖拉任務清單的那個 API
+回應（`GET /projects/{id}/views/{viewId}/tasks`，用 `sort_by[0] ===
+'start_date'` 判斷是不是甘特圖在打，藉此不影響 List/Table/Kanban 其他
+view 的排序），把回傳的 JSON 陣列依 `project_id` 重新分組（穩定排序、依
+各專案第一次出現的位置分堆），再送回瀏覽器。因為 Vikunja 前端建立
+`tasks` Map 的順序就是這個陣列順序，甘特圖的「根任務」列順序自然就照
+分組後的順序排列；已經存在的 parent/subtask DFS 分組邏輯完全不看陣列
+順序，所以不受影響、照原本方式繼續運作。
+
+已知限制：Vikunja 這個端點有分頁，這裡只會在單一分頁的回應內重新分組；
+如果同一個專案的任務多到被拆到不同分頁，就沒辦法完全合併在一起。
+
 ### 已知限制：甘特圖顏色不會繼承專案顏色
 
 用 Saved Filter 把多個專案的任務合併在同一張甘特圖時，每個任務條的顏色是讀

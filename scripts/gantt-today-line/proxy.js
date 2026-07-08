@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-// Tiny reverse proxy that sits in front of the Vikunja binary so we can inject
-// a "today" vertical line into the Gantt view without patching/rebuilding
-// Vikunja itself (the official release binary embeds a prebuilt frontend, so
-// there is no file to patch post-install). All non-HTML traffic (API calls,
-// JS/CSS bundles, websockets) is piped through untouched; only HTML documents
-// get the extra <link>/<script> tag appended before </body>.
+// Tiny reverse proxy that sits in front of the Vikunja binary so we can patch
+// the Gantt view without patching/rebuilding Vikunja itself (the official
+// release binary embeds a prebuilt frontend, so there is no file to patch
+// post-install). Two independent transforms happen here:
+//  - HTML documents get an extra <link>/<script> tag appended before </body>
+//    (see inject.css / inject.js) to draw the "today" vertical line.
+//  - The Gantt view's own task-list JSON response gets its tasks reordered,
+//    grouping every project's tasks together (see groupTasksByProject below).
+// All other traffic (other API calls, JS/CSS bundles, websockets) is piped
+// through untouched.
 'use strict';
 
 const http = require('http');
@@ -23,6 +27,61 @@ const INJECT_TAG = `<link rel="stylesheet" href="${INJECT_CSS_PATH}"><script src
 const ASSET_FILES = {
 	[INJECT_CSS_PATH]: {file: 'inject.css', type: 'text/css; charset=utf-8'},
 	[INJECT_JS_PATH]: {file: 'inject.js', type: 'application/javascript; charset=utf-8'},
+}
+
+// Matches the task-list endpoint Vikunja's frontend calls for a project view
+// (see frontend/src/services/taskCollection.ts): "/projects/{id}/tasks" or,
+// when the request carries a viewId, "/projects/{id}/views/{viewId}/tasks".
+const TASK_LIST_PATH_RE = /^\/api\/v1\/projects\/-?\d+\/(?:views\/\d+\/)?tasks$/;
+
+// The Gantt view is the only one that hardcodes sort_by=[start_date, ...]
+// (frontend/src/views/project/helpers/useGanttFilters.ts); List/Table/Kanban
+// default to sort_by=[position, id]. Checking for that is how we scope the
+// project-grouping reorder to the Gantt view only, leaving other views'
+// task order exactly as Vikunja returns it.
+function isGanttTaskListRequest(url) {
+	if (!TASK_LIST_PATH_RE.test(url.pathname)) return false
+	return url.searchParams.getAll('sort_by')[0] === 'start_date'
+}
+
+// Vikunja's Gantt view has no concept of "group rows by project" -- row
+// order for tasks with no parent/child relation to each other is just
+// whatever order the API returned them in (see buildGanttTaskTree in
+// go-vikunja/vikunja's frontend, which walks `tasks` in Map-insertion
+// order for root-level tasks). That order is start_date-ascending, so a
+// freshly created task with no start_date sorts as if dated year 1 and
+// floats to the very top, nowhere near its sibling tasks in the same
+// project. Grouping the JSON array by project_id here -- before it ever
+// reaches Vikunja's frontend -- makes the resulting Map insertion order
+// (and therefore the Gantt row order) cluster each project's tasks
+// together, while leaving each project's own internal ordering (and any
+// existing parent/child DFS grouping, which doesn't depend on array order
+// at all) untouched.
+//
+// Known limitation: Vikunja paginates this endpoint and this only reorders
+// within a single page's response, so if one project's tasks are split
+// across a page boundary they won't fully merge into one cluster.
+function groupTasksByProject(bodyText) {
+	let tasks
+	try {
+		tasks = JSON.parse(bodyText)
+	} catch {
+		return bodyText // not JSON (e.g. an error response) -- leave it alone
+	}
+	if (!Array.isArray(tasks)) return bodyText
+
+	const projectOrder = []
+	const byProject = new Map()
+	for (const task of tasks) {
+		const projectId = task.project_id
+		if (!byProject.has(projectId)) {
+			byProject.set(projectId, [])
+			projectOrder.push(projectId)
+		}
+		byProject.get(projectId).push(task)
+	}
+
+	return JSON.stringify(projectOrder.flatMap((projectId) => byProject.get(projectId)))
 }
 
 function serveAsset(res, asset) {
@@ -44,10 +103,13 @@ const server = http.createServer((req, res) => {
 		return
 	}
 
-	// Ask Vikunja for uncompressed responses so HTML injection can safely do a
-	// plain string replace instead of having to gunzip/brotli-decode first.
+	// Ask Vikunja for uncompressed responses so injection/reordering can safely
+	// do plain string/JSON manipulation instead of having to gunzip/brotli-decode first.
 	const headers = {...req.headers}
 	delete headers['accept-encoding']
+
+	const reqUrl = new URL(req.url, 'http://internal')
+	const wantsTaskGrouping = req.method === 'GET' && isGanttTaskListRequest(reqUrl)
 
 	const proxyReq = http.request(
 		{
@@ -59,8 +121,10 @@ const server = http.createServer((req, res) => {
 		},
 		(proxyRes) => {
 			const contentType = proxyRes.headers['content-type'] || ''
+			const isHtml = contentType.includes('text/html')
+			const isJson = contentType.includes('application/json')
 
-			if (!contentType.includes('text/html')) {
+			if (!isHtml && !(wantsTaskGrouping && isJson)) {
 				res.writeHead(proxyRes.statusCode, proxyRes.headers)
 				proxyRes.pipe(res)
 				return
@@ -70,9 +134,9 @@ const server = http.createServer((req, res) => {
 			proxyRes.on('data', (chunk) => chunks.push(chunk))
 			proxyRes.on('end', () => {
 				let body = Buffer.concat(chunks).toString('utf8')
-				body = body.includes('</body>')
-					? body.replace('</body>', `${INJECT_TAG}</body>`)
-					: body + INJECT_TAG
+				body = isHtml
+					? (body.includes('</body>') ? body.replace('</body>', `${INJECT_TAG}</body>`) : body + INJECT_TAG)
+					: groupTasksByProject(body)
 
 				const responseHeaders = {...proxyRes.headers}
 				delete responseHeaders['transfer-encoding']
