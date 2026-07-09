@@ -13,15 +13,25 @@
       - Double-click this .ps1 file
       - Or run in PowerShell: & "F:\vikunja-src\update.ps1"
 .NOTES
-    Version: 1.2
+    Version: 2.0
+    Requires: F:\deploy-helpers\DeployHelpers.psm1
 #>
 
 $ErrorActionPreference = "Continue"
 $LogFile = "F:\vikunja-src\update.log"
 $StartTime = Get-Date
 
+# Import shared deployment helpers
+$modulePath = "F:\deploy-helpers\DeployHelpers.psm1"
+if (-not (Test-Path $modulePath)) {
+    Write-Host "ERROR: Shared module not found at $modulePath" -ForegroundColor Red
+    Write-Host "  Clone from: git@github.com:chenweihanfool/deploy-helpers.git" -ForegroundColor Yellow
+    exit 1
+}
+Import-Module $modulePath -Force
+
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "       Vikunja Update Script v1.2        " -ForegroundColor Cyan
+Write-Host "       Vikunja Update Script v2.0        " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "Start: $($StartTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
 Write-Host ""
@@ -102,37 +112,21 @@ catch {
 # ==============================================
 Write-Host "[4/5] Restarting gantt-today-line proxy..." -ForegroundColor Yellow
 try {
-    # Kill existing proxy processes (find by listening port). Uses
-    # Get-NetTCPConnection instead of parsing netstat text output: netstat's
-    # "LISTENING" state label is localized (e.g. "監聽中" on zh-TW Windows),
-    # so a hardcoded English string match silently never found the old
-    # process, never killed it, and the new one then failed to bind to the
-    # already-occupied port -- meaning every update silently kept running
-    # stale code. Get-NetTCPConnection's .State is a fixed enum value
-    # ("Listen"), not a localized display string, so this isn't locale-dependent.
+    # Kill existing proxy on port 3456 (uses Get-NetTCPConnection, not locale-dependent netstat)
     Write-Host "  >> Stopping existing proxy..." -ForegroundColor Gray
-    $existing = Get-NetTCPConnection -LocalPort 3456 -State Listen -ErrorAction SilentlyContinue
-    if ($existing) {
-        foreach ($conn in $existing) {
-            Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
-            Write-Host "  >> Killed PID $($conn.OwningProcess)" -ForegroundColor Gray
-        }
-    } else {
-        Write-Host "  >> No existing proxy found" -ForegroundColor Gray
-    }
+    Stop-ProcessByPort -Port 3456
     Start-Sleep -Seconds 2
 
-    # Start proxy using Start-Process (hidden window, no redirect)
+    # Start proxy using Start-DetachedProcess (no console sharing, exits immediately)
     $proxyDir = "F:\vikunja-src\scripts\gantt-today-line"
-    # Start proxy in a truly detached process (no console sharing, exits immediately)
-    $env:GANTT_PROXY_PUBLIC_PORT = "3456"
-    $env:GANTT_PROXY_INTERNAL_PORT = "3457"
-    $null = Start-Process -FilePath "node" -ArgumentList "proxy.js" -WorkingDirectory $proxyDir -WindowStyle Hidden
+    Start-DetachedProcess -FilePath "node" -Arguments "proxy.js" -WorkingDirectory $proxyDir -Environment @{
+        GANTT_PROXY_PUBLIC_PORT = "3456"
+        GANTT_PROXY_INTERNAL_PORT = "3457"
+    }
     Start-Sleep -Seconds 3
 
-    # Verify proxy is listening (same locale-independence reasoning as above)
-    $check = Get-NetTCPConnection -LocalPort 3456 -State Listen -ErrorAction SilentlyContinue
-    if ($check) {
+    # Verify proxy is listening (same locale-independence as above)
+    if (Test-PortListening -Port 3456) {
         Write-Host "  >> Proxy started (listening on port 3456)" -ForegroundColor Green
     } else {
         throw "Proxy failed to bind to port 3456"
