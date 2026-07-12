@@ -11,18 +11,18 @@
     
     Usage:
       - Double-click this .ps1 file
-      - Or run in PowerShell: & "F:\vikunja-src\update.ps1"
+      - Or run in PowerShell: & "F:\WEBAPP\SRC\vikunja\update.ps1"
 .NOTES
     Version: 2.0
-    Requires: F:\deploy-helpers\DeployHelpers.psm1
+    Requires: F:\WEBAPP\Deploy\deploy-helpers\DeployHelpers.psm1
 #>
 
 $ErrorActionPreference = "Continue"
-$LogFile = "F:\vikunja-src\update.log"
+$LogFile = "F:\WEBAPP\SRC\vikunja\update.log"
 $StartTime = Get-Date
 
 # Import shared deployment helpers
-$modulePath = "F:\deploy-helpers\DeployHelpers.psm1"
+$modulePath = "F:\WEBAPP\Deploy\deploy-helpers\DeployHelpers.psm1"
 if (-not (Test-Path $modulePath)) {
     Write-Host "ERROR: Shared module not found at $modulePath" -ForegroundColor Red
     Write-Host "  Clone from: git@github.com:chenweihanfool/deploy-helpers.git" -ForegroundColor Yellow
@@ -51,7 +51,7 @@ function Run-Native {
 # ==============================================
 Write-Host "[1/5] Pulling latest code from GitHub..." -ForegroundColor Yellow
 try {
-    Push-Location F:\vikunja-src
+    Push-Location F:\WEBAPP\SRC\vikunja
     $gitResult = Run-Native { git pull 2>&1 }
     Write-Host $gitResult
     if ($gitResult -match "Updating") {
@@ -72,7 +72,7 @@ catch {
 # ==============================================
 Write-Host "[2/5] Pulling latest Vikunja Docker image..." -ForegroundColor Yellow
 try {
-    Push-Location F:\vikunja
+    Push-Location F:\WEBAPP\Deploy\vikunja
     $pullResult = cmd /c "docker compose pull 2>&1"
     Write-Host $pullResult
     if ($LASTEXITCODE -ne 0) {
@@ -92,7 +92,7 @@ catch {
 # ==============================================
 Write-Host "[3/5] Recreating containers..." -ForegroundColor Yellow
 try {
-    Push-Location F:\vikunja
+    Push-Location F:\WEBAPP\Deploy\vikunja
     $upResult = cmd /c "docker compose up -d 2>&1"
     Write-Host $upResult
     if ($LASTEXITCODE -ne 0) {
@@ -118,7 +118,7 @@ try {
     Start-Sleep -Seconds 2
 
     # Start proxy using Start-DetachedProcess (no console sharing, exits immediately)
-    $proxyDir = "F:\vikunja-src\scripts\gantt-today-line"
+    $proxyDir = "F:\WEBAPP\SRC\vikunja\scripts\gantt-today-line"
     Start-DetachedProcess -FilePath "node" -Arguments "proxy.js" -WorkingDirectory $proxyDir -Environment @{
         GANTT_PROXY_PUBLIC_PORT = "3456"
         GANTT_PROXY_INTERNAL_PORT = "3457"
@@ -134,7 +134,7 @@ try {
 }
 catch {
     Write-Host "ERROR proxy restart: $_" -ForegroundColor Red
-    Write-Host "  Manually start with: F:\vikunja-src\scripts\gantt-today-line\start-proxy.bat" -ForegroundColor Yellow
+    Write-Host "  Manually start with: F:\WEBAPP\SRC\vikunja\scripts\gantt-today-line\start-proxy.bat" -ForegroundColor Yellow
 }
 
 # ==============================================
