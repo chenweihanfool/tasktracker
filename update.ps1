@@ -12,6 +12,15 @@
     Usage:
       - Double-click this .ps1 file
       - Or run in PowerShell: & "F:\WEBAPP\SRC\vikunja\update.ps1"
+
+    DEPLOYMENT RULE (2026-07-25 architecture review, applies to every app on this
+    host): this script is the ONLY sanctioned way to change what's running in the
+    container. Do not `docker exec` into the running container to hand-edit files
+    as a "hotfix" -- this is exactly what happened here before: a manual in-container
+    hotfix was never committed to git, and the next `git pull` silently reverted it
+    with no record it ever existed (see project-pf-cwh-migration memory for the full
+    incident). If something is truly urgent enough to bypass this, commit + push the
+    change to git immediately afterward so the repo stays the source of truth.
 .NOTES
     Version: 2.0
     Requires: F:\WEBAPP\Deploy\deploy-helpers\DeployHelpers.psm1
