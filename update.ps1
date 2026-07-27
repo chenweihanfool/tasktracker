@@ -153,7 +153,7 @@ Write-Host "[5/5] Health check..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 
 try {
-    $statusCode = (Invoke-WebRequest -Uri "https://cwh2023.asuscomm.com/" -UseBasicParsing -TimeoutSec 15).StatusCode
+    $statusCode = (Invoke-WebRequest -Uri "https://cwh2023.synology.me/" -UseBasicParsing -TimeoutSec 15).StatusCode
     if ($statusCode -eq 200) {
         Write-Host "  >> PASS - Vikunja is running (HTTP $statusCode)" -ForegroundColor Green
     } else {
@@ -167,7 +167,7 @@ catch {
 
 # Verify proxy injection works
 try {
-    $html = Invoke-WebRequest -Uri "https://cwh2023.asuscomm.com/" -UseBasicParsing -TimeoutSec 10
+    $html = Invoke-WebRequest -Uri "https://cwh2023.synology.me/" -UseBasicParsing -TimeoutSec 10
     if ($html.Content -match "gantt-today-line") {
         Write-Host "  >> Proxy injection verified (gantt-today-line found in HTML)" -ForegroundColor Green
     } else {
@@ -186,7 +186,7 @@ $Duration = ($EndTime - $StartTime).TotalSeconds
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "Update complete! ($($Duration.ToString('0.0'))s)" -ForegroundColor Cyan
-Write-Host "https://cwh2023.asuscomm.com" -ForegroundColor Cyan
+Write-Host "https://cwh2023.synology.me" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
 $LogLine = "$($StartTime.ToString('yyyy-MM-dd HH:mm:ss')) | ${Duration:0.0}s | Done"
